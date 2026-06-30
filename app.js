@@ -154,6 +154,11 @@ let supabaseKey = localStorage.getItem('talentflow_supabase_key') || DEFAULT_SUP
 let supabaseClient = null;
 let isAdmin = false; // Tracks if administrative operations are unlocked
 
+// Set up PDF.js Global Worker Src
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+}
+
 // Safe Lucide Icons Creation Helper
 function safeCreateIcons() {
     if (typeof lucide !== 'undefined') {
@@ -1308,7 +1313,7 @@ function setupEventListeners() {
             });
         }
         
-        function handleSelectedFile(file) {
+        async function handleSelectedFile(file) {
             if (file.type !== 'application/pdf') {
                 alert('Only PDF documents are supported.');
                 return;
@@ -1321,6 +1326,38 @@ function setupEventListeners() {
             feedback.querySelector('.file-name').textContent = file.name;
             feedback.style.display = 'flex';
             dropzone.style.display = 'none';
+
+            // Auto-fill form fields by parsing the PDF resume text
+            const parsingIndicator = document.createElement('div');
+            parsingIndicator.id = 'parsing-loader';
+            parsingIndicator.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:8px; font-size:11px; color:var(--primary); font-weight:500;';
+            parsingIndicator.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width:12px; height:12px;"></i> Parsing resume contact details...';
+            feedback.appendChild(parsingIndicator);
+            safeCreateIcons();
+
+            try {
+                const text = await parseResumeText(file);
+                const info = extractCandidateInfo(text);
+                if (info) {
+                    const newName = document.getElementById('new-name');
+                    const newEmail = document.getElementById('new-email');
+                    const newPhone = document.getElementById('new-phone');
+                    
+                    if (info.name && newName && !newName.value) {
+                        newName.value = info.name;
+                    }
+                    if (info.email && newEmail && !newEmail.value) {
+                        newEmail.value = info.email;
+                    }
+                    if (info.phone && newPhone && !newPhone.value) {
+                        newPhone.value = info.phone;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to auto-extract resume details:', err);
+            } finally {
+                if (parsingIndicator) parsingIndicator.remove();
+            }
         }
     }
 
@@ -1814,4 +1851,77 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {
     initApp();
+}
+
+// Parse PDF text client-side using PDF.js
+async function parseResumeText(file) {
+    if (typeof pdfjsLib === 'undefined') {
+        console.warn('PDF.js not loaded.');
+        return null;
+    }
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let textContent = "";
+
+        // Read up to 2 pages (names/emails are always on the first page)
+        const pagesToRead = Math.min(pdf.numPages, 2);
+        for (let i = 1; i <= pagesToRead; i++) {
+            const page = await pdf.getPage(i);
+            const text = await page.getTextContent();
+            const pageText = text.items.map(item => item.str).join("\n");
+            textContent += pageText + "\n";
+        }
+
+        return textContent;
+    } catch (err) {
+        console.error('Failed to parse PDF text:', err);
+        return null;
+    }
+}
+
+// Helper to extract candidate name, email, and phone from raw text
+function extractCandidateInfo(text) {
+    if (!text) return null;
+
+    // 1. Extract Email
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const emailMatch = text.match(emailRegex);
+    const email = emailMatch ? emailMatch[0] : '';
+
+    // 2. Extract Phone
+    const phoneRegex = /(?:\+62|62|0)(?:\s|-|\.)?\d{2,4}(?:\s|-|\.)?\d{3,4}(?:\s|-|\.)?\d{3,6}\b|(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4,10}/g;
+    const phoneMatch = text.match(phoneRegex);
+    let phone = phoneMatch ? phoneMatch[0].trim() : '';
+    if (phone && !phone.startsWith('+') && (phone.startsWith('62') || phone.startsWith('08'))) {
+        if (phone.startsWith('08')) {
+            phone = '+62 ' + phone.substring(1);
+        } else if (phone.startsWith('62')) {
+            phone = '+' + phone;
+        }
+    }
+
+    // 3. Extract Name (Heuristics-based)
+    const lines = text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    let name = '';
+    const linesToCheck = lines.slice(0, 15);
+    for (const line of linesToCheck) {
+        if (line.includes('@') || line.includes('http') || line.includes('www') || line.includes('.com') || line.includes('github') || line.includes('linkedin')) continue;
+        if (/\d{4,}/.test(line)) continue;
+        
+        const lower = line.toLowerCase();
+        if (lower.includes('resume') || lower.includes('cv') || lower.includes('curriculum') || lower.includes('contact') || lower.includes('profile') || lower.includes('experience') || lower.includes('education') || lower.includes('summary')) continue;
+        
+        // Match lines with 2 to 4 capitalized words
+        if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}$/.test(line)) {
+            name = line;
+            break;
+        }
+    }
+
+    return { name, email, phone };
 }
