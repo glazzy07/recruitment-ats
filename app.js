@@ -313,12 +313,17 @@ function updateAdminStatusBadge(loggedIn, email) {
     const label = document.getElementById('admin-status-label');
     if (!badge || !label) return;
 
+    badge.style.display = 'inline-flex';
+
     if (!supabaseClient) {
-        badge.style.display = 'none';
+        badge.className = 'db-status-tag offline';
+        badge.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        badge.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+        badge.style.color = 'var(--text-muted)';
+        badge.innerHTML = `<i data-lucide="lock" style="width: 10px; height: 10px;"></i> <span id="admin-status-label">Local Mode</span>`;
+        safeCreateIcons();
         return;
     }
-
-    badge.style.display = 'inline-flex';
 
     if (loggedIn) {
         badge.className = 'db-status-tag online';
@@ -1671,7 +1676,10 @@ function setupEventListeners() {
     const adminBadge = document.getElementById('admin-status-badge');
     if (adminBadge) {
         adminBadge.addEventListener('click', async () => {
-            if (!supabaseClient) return;
+            if (!supabaseClient) {
+                alert('Your application is currently running in Offline (Local) Mode. To unlock online administrative database authentication, please configure and connect your Supabase project in the "Settings" tab first!');
+                return;
+            }
 
             if (isAdmin) {
                 if (confirm('Sign out of Administrator Mode?')) {
