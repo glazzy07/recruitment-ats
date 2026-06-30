@@ -1703,17 +1703,18 @@ function setupEventListeners() {
                 }
             }
             
-            candidates.push(newCandidate);
-            
             if (supabaseClient) {
                 try {
                     const { error } = await supabaseClient.from('candidates').insert([newCandidate]);
                     if (error) throw error;
                 } catch (err) {
                     console.error('Failed to insert candidate to Supabase:', err);
+                    alert(`Failed to save candidate to database: ${err.message || 'Check your database connection.'}`);
+                    return; // Abort submission
                 }
             }
             
+            candidates.push(newCandidate);
             saveToLocalStorageBackup();
             updateDatalistSuggestions();
             switchView(currentView);
