@@ -230,7 +230,11 @@ function initSupabase() {
 
     if (supabaseUrl && supabaseKey && window.supabase) {
         try {
-            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+            const cleanUrl = supabaseUrl.trim()
+                .replace(/\/+$/, '')
+                .replace(/\/rest\/v1\/?$/, '');
+                
+            supabaseClient = window.supabase.createClient(cleanUrl, supabaseKey);
             updateStatusBadge('online');
             
             if (syncLocalBtn) syncLocalBtn.style.display = 'inline-flex';
