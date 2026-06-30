@@ -137,6 +137,9 @@ const defaultCandidates = [
 // Initialize State
 let candidates = [];
 let companyName = localStorage.getItem('talentflow_company_name') || 'TalentFlow';
+let adminName = localStorage.getItem('talentflow_admin_name') || 'Alex Rivera';
+let adminRole = localStorage.getItem('talentflow_admin_role') || 'HR Lead';
+let adminAvatar = localStorage.getItem('talentflow_admin_avatar') || 'AR';
 let activeCandidateId = null;
 let currentView = 'dashboard';
 let pendingResumeFile = null;
@@ -423,6 +426,15 @@ function updateCompanyBrandDisplays() {
     companyDisplayHeaders.forEach(el => {
         el.textContent = `${companyName} Recruitment Pipeline`;
     });
+}
+
+function updateAdminProfileDisplays() {
+    const nameEl = document.querySelector('.sidebar-footer .user-name');
+    const roleEl = document.querySelector('.sidebar-footer .user-role');
+    const avatarEl = document.querySelector('.sidebar-footer .user-avatar');
+    if (nameEl) nameEl.textContent = adminName;
+    if (roleEl) roleEl.textContent = adminRole;
+    if (avatarEl) avatarEl.textContent = adminAvatar;
 }
 
 // Update Top Dashboard stats cards and column counts
@@ -827,10 +839,14 @@ function renderSettingsView() {
     const settingsCompanyName = document.getElementById('settings-company-name');
     const settingsSupabaseUrl = document.getElementById('settings-supabase-url');
     const settingsSupabaseKey = document.getElementById('settings-supabase-key');
+    const settingsAdminName = document.getElementById('settings-admin-name');
+    const settingsAdminRole = document.getElementById('settings-admin-role');
 
     if (settingsCompanyName) settingsCompanyName.value = companyName;
     if (settingsSupabaseUrl) settingsSupabaseUrl.value = supabaseUrl;
     if (settingsSupabaseKey) settingsSupabaseKey.value = supabaseKey;
+    if (settingsAdminName) settingsAdminName.value = adminName;
+    if (settingsAdminRole) settingsAdminRole.value = adminRole;
 }
 
 // Navigation screen router
@@ -1404,10 +1420,29 @@ function setupEventListeners() {
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', () => {
             const settingsCompanyName = document.getElementById('settings-company-name');
-            if (settingsCompanyName) {
+            const settingsAdminName = document.getElementById('settings-admin-name');
+            const settingsAdminRole = document.getElementById('settings-admin-role');
+            
+            if (settingsCompanyName && settingsAdminName && settingsAdminRole) {
                 companyName = settingsCompanyName.value.trim() || 'TalentFlow';
-                saveToLocalStorageBackup();
+                adminName = settingsAdminName.value.trim() || 'Alex Rivera';
+                adminRole = settingsAdminRole.value.trim() || 'HR Lead';
+                
+                // Extract 2-letter initials for avatar badge
+                const initials = adminName.split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase();
+                adminAvatar = initials || 'AR';
+                
+                localStorage.setItem('talentflow_company_name', companyName);
+                localStorage.setItem('talentflow_admin_name', adminName);
+                localStorage.setItem('talentflow_admin_role', adminRole);
+                localStorage.setItem('talentflow_admin_avatar', adminAvatar);
+                
                 updateCompanyBrandDisplays();
+                updateAdminProfileDisplays();
                 alert('General configuration updated successfully.');
             }
         });
@@ -1758,6 +1793,7 @@ function setupEventListeners() {
 async function initApp() {
     try {
         updateCompanyBrandDisplays();
+        updateAdminProfileDisplays();
         initSupabase();
         await fetchCandidates();
         updateDatalistSuggestions();
