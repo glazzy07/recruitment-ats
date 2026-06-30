@@ -244,6 +244,9 @@ function initSupabase() {
                     isAdmin = false;
                     document.body.classList.remove('user-is-admin');
                     updateAdminStatusBadge(false);
+                    if (currentView === 'settings') {
+                        currentView = 'dashboard';
+                    }
                 }
                 switchView(currentView);
             });
@@ -258,6 +261,9 @@ function initSupabase() {
                     isAdmin = false;
                     document.body.classList.remove('user-is-admin');
                     updateAdminStatusBadge(false);
+                    if (currentView === 'settings') {
+                        currentView = 'dashboard';
+                    }
                 }
                 switchView(currentView);
             });
