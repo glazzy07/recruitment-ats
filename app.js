@@ -154,9 +154,18 @@ let supabaseKey = localStorage.getItem('talentflow_supabase_key') || DEFAULT_SUP
 let supabaseClient = null;
 let isAdmin = false; // Tracks if administrative operations are unlocked
 
-// Set up PDF.js Global Worker Src
+// Set up PDF.js Global Worker Src using Same-Origin Blob to bypass CORS worker constraints
 if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js')
+        .then(response => response.blob())
+        .then(blob => {
+            const workerUrl = URL.createObjectURL(blob);
+            pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+        })
+        .catch(err => {
+            console.warn('Failed to load PDF worker as blob, falling back to CDN:', err);
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        });
 }
 
 // Safe Lucide Icons Creation Helper
@@ -1909,17 +1918,28 @@ function extractCandidateInfo(text) {
 
     let name = '';
     const linesToCheck = lines.slice(0, 15);
+    const skips = ['resume', 'cv', 'curriculum', 'contact', 'profile', 'experience', 'education', 'summary', 'skills', 'about', 'phone', 'email', 'address', 'page', 'university', 'college', 'school', 'institute', 'inc', 'corp', 'ltd', 'co'];
+
     for (const line of linesToCheck) {
         if (line.includes('@') || line.includes('http') || line.includes('www') || line.includes('.com') || line.includes('github') || line.includes('linkedin')) continue;
         if (/\d{4,}/.test(line)) continue;
         
         const lower = line.toLowerCase();
-        if (lower.includes('resume') || lower.includes('cv') || lower.includes('curriculum') || lower.includes('contact') || lower.includes('profile') || lower.includes('experience') || lower.includes('education') || lower.includes('summary')) continue;
+        if (skips.some(s => lower.includes(s))) continue;
         
-        // Match lines with 2 to 4 capitalized words
-        if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}$/.test(line)) {
-            name = line;
-            break;
+        // Split line into words
+        const words = line.split(/\s+/).filter(w => w.length > 0);
+        if (words.length >= 2 && words.length <= 4) {
+            const isNameFormat = words.every(word => {
+                // Must contain only letters (and optional dots/dashes, e.g. "K.")
+                if (!/^[A-Za-z\-'\.]+$/.test(word)) return false;
+                // First letter must be capitalized (or entire word is uppercase)
+                return /^[A-Z]/.test(word);
+            });
+            if (isNameFormat) {
+                name = line;
+                break;
+            }
         }
     }
 
