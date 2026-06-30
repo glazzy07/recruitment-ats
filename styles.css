@@ -1459,6 +1459,11 @@ body.user-is-admin .admin-only {
     display: inline-flex !important;
 }
 
+body.user-is-admin a.admin-only,
+body.user-is-admin .nav-item.admin-only {
+    display: flex !important;
+}
+
 body.user-is-admin div.admin-only,
 body.user-is-admin section.admin-only,
 body.user-is-admin tr.admin-only {

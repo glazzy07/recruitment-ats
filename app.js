@@ -271,16 +271,24 @@ function initSupabase() {
             console.error('Supabase initialization failed:', err);
             supabaseClient = null;
             updateStatusBadge('offline');
-            isAdmin = true; // Local admin override
-            document.body.classList.add('user-is-admin');
-            updateAdminStatusBadge(false);
+            isAdmin = sessionStorage.getItem('talentflow_local_admin') === 'true';
+            if (isAdmin) {
+                document.body.classList.add('user-is-admin');
+            } else {
+                document.body.classList.remove('user-is-admin');
+            }
+            updateAdminStatusBadge(isAdmin);
         }
     } else {
         supabaseClient = null;
         updateStatusBadge('offline');
-        isAdmin = true; // Local admin override
-        document.body.classList.add('user-is-admin');
-        updateAdminStatusBadge(false);
+        isAdmin = sessionStorage.getItem('talentflow_local_admin') === 'true';
+        if (isAdmin) {
+            document.body.classList.add('user-is-admin');
+        } else {
+            document.body.classList.remove('user-is-admin');
+        }
+        updateAdminStatusBadge(isAdmin);
         if (syncLocalBtn) syncLocalBtn.style.display = 'none';
         if (disconnectSupabaseBtn) disconnectSupabaseBtn.style.display = 'none';
         if (saveSupabaseBtn) saveSupabaseBtn.innerHTML = '<i data-lucide="link"></i> Connect Database';
