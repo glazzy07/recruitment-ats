@@ -43,10 +43,18 @@ CREATE TABLE IF NOT EXISTS candidates (
 -- Enable Row Level Security (RLS)
 ALTER TABLE candidates ENABLE ROW LEVEL SECURITY;
 
--- Create public database policy (CRUD allowed for demo)
+-- Drop old wide-open CRUD policy
 DROP POLICY IF EXISTS "Allow public CRUD" ON candidates;
-CREATE POLICY "Allow public CRUD" ON candidates 
-    FOR ALL USING (true) WITH CHECK (true);
+
+-- Create public read-only policy (anyone can view)
+DROP POLICY IF EXISTS "Allow public SELECT" ON candidates;
+CREATE POLICY "Allow public SELECT" ON candidates 
+    FOR SELECT USING (true);
+
+-- Create secure write policy (only authenticated admin can modify)
+DROP POLICY IF EXISTS "Allow admin write access" ON candidates;
+CREATE POLICY "Allow admin write access" ON candidates 
+    FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 2. Create the resumes storage bucket
 INSERT INTO storage.buckets (id, name, public) 
@@ -54,26 +62,35 @@ VALUES ('resumes', 'resumes', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Set storage object policies for Row Level Security (RLS)
-DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
-CREATE POLICY "Public Read Access" ON storage.objects 
+-- Anyone can view resumes
+DROP POLICY IF EXISTS "Public Read Resumes" ON storage.objects;
+CREATE POLICY "Public Read Resumes" ON storage.objects 
     FOR SELECT USING (bucket_id = 'resumes');
 
-DROP POLICY IF EXISTS "Public Insert Access" ON storage.objects;
-CREATE POLICY "Public Insert Access" ON storage.objects 
-    FOR INSERT WITH CHECK (bucket_id = 'resumes');
+-- Only authenticated admin can upload/update/delete resumes
+DROP POLICY IF EXISTS "Admin Insert Resumes" ON storage.objects;
+CREATE POLICY "Admin Insert Resumes" ON storage.objects 
+    FOR INSERT TO authenticated WITH CHECK (bucket_id = 'resumes');
 
-DROP POLICY IF EXISTS "Public Update Access" ON storage.objects;
-CREATE POLICY "Public Update Access" ON storage.objects 
-    FOR UPDATE USING (bucket_id = 'resumes') WITH CHECK (bucket_id = 'resumes');
+DROP POLICY IF EXISTS "Admin Update Resumes" ON storage.objects;
+CREATE POLICY "Admin Update Resumes" ON storage.objects 
+    FOR UPDATE TO authenticated USING (bucket_id = 'resumes') WITH CHECK (bucket_id = 'resumes');
 
-DROP POLICY IF EXISTS "Public Delete Access" ON storage.objects;
-CREATE POLICY "Public Delete Access" ON storage.objects 
-    FOR DELETE USING (bucket_id = 'resumes');
+DROP POLICY IF EXISTS "Admin Delete Resumes" ON storage.objects;
+CREATE POLICY "Admin Delete Resumes" ON storage.objects 
+    FOR DELETE TO authenticated USING (bucket_id = 'resumes');
 ```
 
 4. Click **Run** in the bottom right of the editor. You should see a success message (`Success. No rows returned`).
 
-### 3. Connect the Web App
+### 3. Create your Administrator Account in Supabase
+1. In your Supabase Project Dashboard, go to **Authentication** (user icon in the left menu sidebar).
+2. Click the **Add User** dropdown and select **Create User**.
+3. Enter your Administrator Email (e.g. `admin@mycompany.com`) and set a secure Password.
+4. Click **Save**. The user will be created and instantly confirmed.
+5. In your local `app.js` file, replace the values of `DEFAULT_SUPABASE_URL` and `DEFAULT_SUPABASE_KEY` (around lines 145-146) with your project's URL and Anon Key. This ensures visitors load your database immediately, with visitor lock-down mode active by default.
+
+### 4. Connect the Web App
 1. Go to **Project Settings** (gear icon in the left menu) -> **API** in the Supabase dashboard.
 2. Find and copy your **Project URL** (under Project API keys).
 3. Find and copy your **Anon Key / public** (under Project API keys).

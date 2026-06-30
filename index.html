@@ -27,6 +27,10 @@
                     <span class="status-dot"></span>
                     <span class="status-label">Offline Mode</span>
                 </div>
+                <div id="admin-status-badge" class="db-status-tag offline" style="margin-top: 4px; cursor: pointer; border-color: rgba(99, 102, 241, 0.2); background-color: rgba(99, 102, 241, 0.05); color: var(--primary);">
+                    <i data-lucide="lock" style="width: 10px; height: 10px;"></i>
+                    <span id="admin-status-label">Visitor Mode</span>
+                </div>
             </div>
             
             <nav class="sidebar-nav">
@@ -73,7 +77,7 @@
                     </div>
                     
                     <div class="header-actions">
-                        <button class="btn btn-primary open-add-candidate-btn">
+                        <button class="btn btn-primary open-add-candidate-btn admin-only">
                             <i data-lucide="plus"></i>
                             <span>Add Candidate</span>
                         </button>
@@ -244,7 +248,7 @@
                         <p class="subtitle">Review and manage all applicant records in a database table</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-primary open-add-candidate-btn">
+                        <button class="btn btn-primary open-add-candidate-btn admin-only">
                             <i data-lucide="plus"></i>
                             <span>Add Candidate</span>
                         </button>
@@ -347,13 +351,13 @@
                             <label for="settings-company-name">Company Name / Portal Title</label>
                             <input type="text" id="settings-company-name" value="TalentFlow">
                         </div>
-                        <button class="btn btn-primary" id="save-settings-btn" style="margin-top: 16px;">
+                        <button class="btn btn-primary admin-only" id="save-settings-btn" style="margin-top: 16px;">
                             Save Settings
                         </button>
                     </div>
 
                     <!-- Supabase Credentials Card -->
-                    <div class="settings-card">
+                    <div class="settings-card admin-only">
                         <h3>Supabase Cloud Integration</h3>
                         <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
                             Connect your pipeline to a live Supabase PostgreSQL database for real-time collaboration.
@@ -380,7 +384,7 @@
                     </div>
 
                     <!-- Danger Reset Database Card -->
-                    <div class="settings-card danger-zone">
+                    <div class="settings-card danger-zone admin-only">
                         <h3>Danger Zone</h3>
                         <p>Reset the candidate database back to original Indonesian format mock seeds. All your custom roles, comments, and level settings will be overwritten.</p>
                         <button class="btn" id="reset-database-btn" style="background-color: var(--color-rejected); color: white; margin-top: 16px;">
@@ -407,11 +411,11 @@
             </div>
             
             <div class="drawer-footer">
-                <button class="btn btn-secondary" id="delete-candidate-btn">
+                <button class="btn btn-secondary admin-only" id="delete-candidate-btn">
                     <i data-lucide="trash-2"></i>
                     <span>Delete</span>
                 </button>
-                <button class="btn btn-primary" id="save-drawer-btn">
+                <button class="btn btn-primary admin-only" id="save-drawer-btn">
                     <i data-lucide="check"></i>
                     <span>Save Changes</span>
                 </button>
@@ -510,6 +514,36 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" id="cancel-add-btn">Cancel</button>
                         <button type="submit" class="btn btn-primary">Add Candidate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Admin Login Modal -->
+        <div class="modal-overlay" id="login-modal-overlay">
+            <div class="modal" style="width: 400px;">
+                <div class="modal-header">
+                    <h2>Admin Authentication</h2>
+                    <button class="btn-close" id="close-login-modal-btn">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="admin-login-form">
+                    <div class="modal-body" style="gap: 16px;">
+                        <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">
+                            Sign in with your Supabase administrator credentials to unlock database modification controls.
+                        </p>
+                        <div class="form-group">
+                            <label for="login-email">Administrator Email</label>
+                            <input type="email" id="login-email" required placeholder="admin@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" required placeholder="••••••••">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="cancel-login-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submit-login-btn">Sign In</button>
                     </div>
                 </form>
             </div>

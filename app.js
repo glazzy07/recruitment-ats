@@ -142,9 +142,14 @@ let currentView = 'dashboard';
 let pendingResumeFile = null;
 
 // Supabase Connection Configuration
-let supabaseUrl = localStorage.getItem('talentflow_supabase_url') || '';
-let supabaseKey = localStorage.getItem('talentflow_supabase_key') || '';
-let supabaseClient = null; // Renamed from 'supabase' to avoid conflict with window.supabase global identifier
+// Replace these with your project credentials so public visitors automatically connect to your database.
+const DEFAULT_SUPABASE_URL = 'https://mbafbeamqcxjosuxeobm.supabase.co/rest/v1/';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_9UJJQnbOmWkvw3RSn2MR8g_-11rZL0K';
+
+let supabaseUrl = localStorage.getItem('talentflow_supabase_url') || DEFAULT_SUPABASE_URL;
+let supabaseKey = localStorage.getItem('talentflow_supabase_key') || DEFAULT_SUPABASE_KEY;
+let supabaseClient = null;
+let isAdmin = false; // Tracks if administrative operations are unlocked
 
 // Safe Lucide Icons Creation Helper
 function safeCreateIcons() {
@@ -228,14 +233,48 @@ function initSupabase() {
             if (syncLocalBtn) syncLocalBtn.style.display = 'inline-flex';
             if (disconnectSupabaseBtn) disconnectSupabaseBtn.style.display = 'inline-flex';
             if (saveSupabaseBtn) saveSupabaseBtn.innerHTML = '<i data-lucide="check"></i> Connected';
+
+            // Check active session on startup
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                    isAdmin = true;
+                    document.body.classList.add('user-is-admin');
+                    updateAdminStatusBadge(true, session.user.email);
+                } else {
+                    isAdmin = false;
+                    document.body.classList.remove('user-is-admin');
+                    updateAdminStatusBadge(false);
+                }
+                switchView(currentView);
+            });
+
+            // Listen for authentication changes dynamically
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (session) {
+                    isAdmin = true;
+                    document.body.classList.add('user-is-admin');
+                    updateAdminStatusBadge(true, session.user.email);
+                } else {
+                    isAdmin = false;
+                    document.body.classList.remove('user-is-admin');
+                    updateAdminStatusBadge(false);
+                }
+                switchView(currentView);
+            });
         } catch (err) {
             console.error('Supabase initialization failed:', err);
             supabaseClient = null;
             updateStatusBadge('offline');
+            isAdmin = true; // Local admin override
+            document.body.classList.add('user-is-admin');
+            updateAdminStatusBadge(false);
         }
     } else {
         supabaseClient = null;
         updateStatusBadge('offline');
+        isAdmin = true; // Local admin override
+        document.body.classList.add('user-is-admin');
+        updateAdminStatusBadge(false);
         if (syncLocalBtn) syncLocalBtn.style.display = 'none';
         if (disconnectSupabaseBtn) disconnectSupabaseBtn.style.display = 'none';
         if (saveSupabaseBtn) saveSupabaseBtn.innerHTML = '<i data-lucide="link"></i> Connect Database';
@@ -266,6 +305,47 @@ function updateStatusBadge(status) {
         label.textContent = 'Offline Mode';
     }
     safeCreateIcons();
+}
+
+// Update Admin authentication status badge
+function updateAdminStatusBadge(loggedIn, email) {
+    const badge = document.getElementById('admin-status-badge');
+    const label = document.getElementById('admin-status-label');
+    if (!badge || !label) return;
+
+    if (!supabaseClient) {
+        badge.style.display = 'none';
+        return;
+    }
+
+    badge.style.display = 'inline-flex';
+
+    if (loggedIn) {
+        badge.className = 'db-status-tag online';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+        badge.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
+        badge.style.color = 'var(--color-hired)';
+        badge.innerHTML = `<i data-lucide="unlock" style="width: 10px; height: 10px;"></i> <span id="admin-status-label" style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:80px;">${email || 'Admin'}</span>`;
+    } else {
+        badge.className = 'db-status-tag offline';
+        badge.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+        badge.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+        badge.style.color = 'var(--color-rejected)';
+        badge.innerHTML = `<i data-lucide="lock" style="width: 10px; height: 10px;"></i> <span id="admin-status-label">Visitor Mode</span>`;
+    }
+    safeCreateIcons();
+}
+
+function openLoginModal() {
+    const loginModalOverlay = document.getElementById('login-modal-overlay');
+    if (loginModalOverlay) loginModalOverlay.classList.add('active');
+}
+
+function closeLoginModal() {
+    const loginModalOverlay = document.getElementById('login-modal-overlay');
+    const loginForm = document.getElementById('admin-login-form');
+    if (loginModalOverlay) loginModalOverlay.classList.remove('active');
+    if (loginForm) loginForm.reset();
 }
 
 // Load Candidates from Supabase or LocalStorage
@@ -381,7 +461,7 @@ function getScoreColorClass(score) {
 function createCardElement(candidate) {
     const card = document.createElement('div');
     card.className = 'candidate-card';
-    card.draggable = true;
+    card.draggable = isAdmin;
     card.dataset.id = candidate.id;
     card.style.setProperty('--color-accent', `var(--color-${candidate.stage})`);
     
@@ -420,7 +500,11 @@ function createCardElement(candidate) {
 
     // Drag management
     let isDragging = false;
-    card.addEventListener('dragstart', () => {
+    card.addEventListener('dragstart', (e) => {
+        if (!isAdmin) {
+            e.preventDefault();
+            return;
+        }
         isDragging = true;
         card.classList.add('dragging');
     });
@@ -495,6 +579,7 @@ function setupDragAndDrop() {
     
     columns.forEach(column => {
         column.addEventListener('dragover', (e) => {
+            if (!isAdmin) return;
             e.preventDefault();
             column.classList.add('drag-over');
         });
@@ -504,6 +589,7 @@ function setupDragAndDrop() {
         });
 
         column.addEventListener('drop', async (e) => {
+            if (!isAdmin) return;
             e.preventDefault();
             column.classList.remove('drag-over');
             
@@ -820,7 +906,7 @@ function openDetailDrawer(id) {
                     </div>
                     <div class="info-item">
                         <label>Job Level</label>
-                        <select id="drawer-level-select" style="background-color: rgba(255,255,255,0.04); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; color: white; font-size:12px; cursor:pointer;">
+                        <select id="drawer-level-select" ${isAdmin ? '' : 'disabled'} style="background-color: rgba(255,255,255,0.04); border: ${isAdmin ? '1px solid var(--border-color)' : 'none'}; padding: 4px 8px; border-radius: 4px; color: white; font-size:12px; cursor: ${isAdmin ? 'pointer' : 'default'}; -webkit-appearance: ${isAdmin ? 'menulist' : 'none'}; -moz-appearance: ${isAdmin ? 'menulist' : 'none'}; appearance: ${isAdmin ? 'menulist' : 'none'};">
                             ${levelOptionsHTML}
                         </select>
                     </div>
@@ -858,17 +944,21 @@ function openDetailDrawer(id) {
                             <button type="button" class="resume-link-btn" onclick="openCandidateResume('${candidate.id}', '${candidate.resume_url}')">
                                 <i data-lucide="external-link" style="width:12px; height:12px;"></i> View
                             </button>
-                            <button type="button" class="btn btn-secondary btn-sm" style="padding:6px 8px; color:var(--color-rejected); border-color:rgba(239, 68, 68, 0.2); background:none;" onclick="removeCandidateResume('${candidate.id}')" title="Delete Resume">
+                            <button type="button" class="btn btn-secondary btn-sm admin-only" style="padding:6px 8px; color:var(--color-rejected); border-color:rgba(239, 68, 68, 0.2); background:none;" onclick="removeCandidateResume('${candidate.id}')" title="Delete Resume">
                                 <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
                             </button>
                         </div>
                     </div>
                 ` : `
-                    <div class="file-upload-zone" id="drawer-resume-dropzone" style="padding:16px; border-style:dashed; cursor:pointer;" onclick="document.getElementById('drawer-resume-file').click()">
-                        <i data-lucide="upload-cloud" style="width: 20px; height: 20px; color: var(--text-muted); margin-bottom: 4px;"></i>
-                        <p style="font-size: 11px; font-weight: 500; margin:0;">Drag & drop PDF, or <span style="color: var(--primary); text-decoration: underline;">browse</span></p>
-                        <input type="file" id="drawer-resume-file" accept="application/pdf" style="display: none;" onchange="uploadDrawerResume('${candidate.id}', this.files)">
-                    </div>
+                    ${isAdmin ? `
+                        <div class="file-upload-zone" id="drawer-resume-dropzone" style="padding:16px; border-style:dashed; cursor:pointer;" onclick="document.getElementById('drawer-resume-file').click()">
+                            <i data-lucide="upload-cloud" style="width: 20px; height: 20px; color: var(--text-muted); margin-bottom: 4px;"></i>
+                            <p style="font-size: 11px; font-weight: 500; margin:0;">Drag & drop PDF, or <span style="color: var(--primary); text-decoration: underline;">browse</span></p>
+                            <input type="file" id="drawer-resume-file" accept="application/pdf" style="display: none;" onchange="uploadDrawerResume('${candidate.id}', this.files)">
+                        </div>
+                    ` : `
+                        <span style="font-size:13px; color:var(--text-muted); font-style:italic;">No resume document attached.</span>
+                    `}
                 `}
             </div>
 
@@ -886,7 +976,7 @@ function openDetailDrawer(id) {
                             <span class="rating-val" id="val-tech">${candidate.ratings.technical}</span>
                         </div>
                         <div class="rating-slider-container">
-                            <input type="range" id="slide-tech" min="1" max="10" value="${candidate.ratings.technical}">
+                            <input type="range" id="slide-tech" min="1" max="10" value="${candidate.ratings.technical}" ${isAdmin ? '' : 'disabled'}>
                         </div>
                     </div>
                     <div class="rating-item">
@@ -895,7 +985,7 @@ function openDetailDrawer(id) {
                             <span class="rating-val" id="val-comm">${candidate.ratings.communication}</span>
                         </div>
                         <div class="rating-slider-container">
-                            <input type="range" id="slide-comm" min="1" max="10" value="${candidate.ratings.communication}">
+                            <input type="range" id="slide-comm" min="1" max="10" value="${candidate.ratings.communication}" ${isAdmin ? '' : 'disabled'}>
                         </div>
                     </div>
                     <div class="rating-item">
@@ -904,7 +994,7 @@ function openDetailDrawer(id) {
                             <span class="rating-val" id="val-fit">${candidate.ratings.fit}</span>
                         </div>
                         <div class="rating-slider-container">
-                            <input type="range" id="slide-fit" min="1" max="10" value="${candidate.ratings.fit}">
+                            <input type="range" id="slide-fit" min="1" max="10" value="${candidate.ratings.fit}" ${isAdmin ? '' : 'disabled'}>
                         </div>
                     </div>
                 </div>
@@ -913,7 +1003,7 @@ function openDetailDrawer(id) {
             <div class="detail-section">
                 <h4 class="detail-section-title">Interview Feedback & Notes</h4>
                 <div class="notes-area">
-                    <textarea id="drawer-notes" rows="4" placeholder="Add recruiter feedback or panel review notes...">${candidate.notes || ''}</textarea>
+                    <textarea id="drawer-notes" rows="4" placeholder="${isAdmin ? 'Add recruiter feedback or panel review notes...' : 'No interviewer feedback entered yet.'}" ${isAdmin ? '' : 'readonly'} style="${isAdmin ? '' : 'background-color:transparent; border-color:transparent; padding:0; cursor:default; resize:none;'}">${candidate.notes || ''}</textarea>
                 </div>
             </div>
 
@@ -1574,6 +1664,70 @@ function setupEventListeners() {
             updateDatalistSuggestions();
             switchView(currentView);
             closeAddModal();
+        });
+    }
+
+    // Admin Authentication Button Bindings
+    const adminBadge = document.getElementById('admin-status-badge');
+    if (adminBadge) {
+        adminBadge.addEventListener('click', async () => {
+            if (!supabaseClient) return;
+
+            if (isAdmin) {
+                if (confirm('Sign out of Administrator Mode?')) {
+                    try {
+                        const { error } = await supabaseClient.auth.signOut();
+                        if (error) throw error;
+                        alert('Logged out of Admin Mode successfully.');
+                    } catch (err) {
+                        console.error('Logout failed:', err);
+                        alert(`Logout failed: ${err.message}`);
+                    }
+                }
+            } else {
+                openLoginModal();
+            }
+        });
+    }
+
+    const closeLoginModalBtn = document.getElementById('close-login-modal-btn');
+    const cancelLoginBtn = document.getElementById('cancel-login-btn');
+    if (closeLoginModalBtn) closeLoginModalBtn.addEventListener('click', closeLoginModal);
+    if (cancelLoginBtn) cancelLoginBtn.addEventListener('click', closeLoginModal);
+
+    const loginForm = document.getElementById('admin-login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!supabaseClient) return;
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const submitBtn = document.getElementById('submit-login-btn');
+            const origHTML = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width:14px; height:14px; margin-right:6px;"></i> Signing In...';
+            safeCreateIcons();
+
+            try {
+                const { error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                closeLoginModal();
+                alert('Administrator mode unlocked successfully!');
+            } catch (err) {
+                console.error('Sign in failed:', err);
+                alert(`Authentication failed: ${err.message || 'Check your email/password.'}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = origHTML;
+                safeCreateIcons();
+            }
         });
     }
 }

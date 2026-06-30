@@ -1450,3 +1450,22 @@ body {
     background-color: rgba(239, 68, 68, 0.1);
 }
 
+/* Administrator Access Controls */
+.admin-only {
+    display: none !important;
+}
+
+body.user-is-admin .admin-only {
+    display: inline-flex !important;
+}
+
+body.user-is-admin div.admin-only,
+body.user-is-admin section.admin-only,
+body.user-is-admin tr.admin-only {
+    display: block !important;
+}
+
+body.user-is-admin .drawer-footer.admin-only {
+    display: flex !important;
+}
+
