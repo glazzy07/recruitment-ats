@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalentFlow - Advanced Applicant Tracking System</title>
+    <!-- Google Fonts: Outfit and Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area" style="flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 30px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="logo-icon">TF</div>
+                    <span class="logo-text" id="logo-text-brand">Talent<span>Flow</span></span>
+                </div>
+                <div class="db-status-tag offline" id="db-status-badge">
+                    <span class="status-dot"></span>
+                    <span class="status-label">Offline Mode</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-view="candidates">
+                    <i data-lucide="users"></i>
+                    <span>Candidates</span>
+                </a>
+                <a href="#" class="nav-item" data-view="jobs">
+                    <i data-lucide="briefcase"></i>
+                    <span>Jobs</span>
+                </a>
+                <a href="#" class="nav-item" data-view="interviews">
+                    <i data-lucide="calendar"></i>
+                    <span>Interviews</span>
+                </a>
+                <a href="#" class="nav-item" data-view="settings">
+                    <i data-lucide="settings"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-avatar">HR</div>
+                <div class="user-info">
+                    <p class="user-name">Alex Rivera</p>
+                    <p class="user-role">HR Lead</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- VIEW: DASHBOARD (PIPELINE) -->
+            <div id="view-dashboard" class="view-section active">
+                <header class="top-navbar">
+                    <div class="header-title-section">
+                        <h1 class="company-name-display">Recruitment Pipeline</h1>
+                        <p class="subtitle">Manage candidates, reviews, and hiring progression</p>
+                    </div>
+                    
+                    <div class="header-actions">
+                        <button class="btn btn-primary open-add-candidate-btn">
+                            <i data-lucide="plus"></i>
+                            <span>Add Candidate</span>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Dashboard Stats Summary -->
+                <section class="stats-summary" id="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon applied"><i data-lucide="file-text"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Applied</span>
+                            <h3 class="stat-value" id="count-applied">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon screening"><i data-lucide="search"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Screening</span>
+                            <h3 class="stat-value" id="count-screening">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon interviewing"><i data-lucide="video"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Interviewing</span>
+                            <h3 class="stat-value" id="count-interviewing">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon offered"><i data-lucide="award"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Offered</span>
+                            <h3 class="stat-value" id="count-offered">0</h3>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon hired"><i data-lucide="user-check"></i></div>
+                        <div class="stat-details">
+                            <span class="stat-label">Hired</span>
+                            <h3 class="stat-value" id="count-hired">0</h3>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Toolbar (Search & Filter) -->
+                <section class="filter-toolbar">
+                    <div class="search-box">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="search-input" placeholder="Search by name, role, tags...">
+                    </div>
+                    
+                    <div class="filter-options">
+                        <div class="select-wrapper">
+                            <select id="role-filter">
+                                <option value="">All Roles</option>
+                                <option value="Software Engineer">Software Engineer</option>
+                                <option value="Product Manager">Product Manager</option>
+                                <option value="UX Designer">UX Designer</option>
+                                <option value="Data Scientist">Data Scientist</option>
+                                <option value="HR Specialist">HR Specialist</option>
+                            </select>
+                        </div>
+
+                        <div class="select-wrapper">
+                            <select id="sort-filter">
+                                <option value="name">Sort by Name</option>
+                                <option value="score">Sort by Match Score</option>
+                                <option value="recent">Sort by Newest</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Kanban Board -->
+                <section class="kanban-board">
+                    <!-- Column: Applied -->
+                    <div class="kanban-column" data-stage="applied">
+                        <div class="column-header">
+                            <div class="column-title-group">
+                                <span class="dot dot-applied"></span>
+                                <h2>Applied</h2>
+                                <span class="badge" id="badge-applied">0</span>
+                            </div>
+                        </div>
+                        <div class="card-list" id="list-applied">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Screening -->
+                    <div class="kanban-column" data-stage="screening">
+                        <div class="column-header">
+                            <div class="column-title-group">
+                                <span class="dot dot-screening"></span>
+                                <h2>Screening</h2>
+                                <span class="badge" id="badge-screening">0</span>
+                            </div>
+                        </div>
+                        <div class="card-list" id="list-screening">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Interviewing -->
+                    <div class="kanban-column" data-stage="interviewing">
+                        <div class="column-header">
+                            <div class="column-title-group">
+                                <span class="dot dot-interviewing"></span>
+                                <h2>Interviewing</h2>
+                                <span class="badge" id="badge-interviewing">0</span>
+                            </div>
+                        </div>
+                        <div class="card-list" id="list-interviewing">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Offered -->
+                    <div class="kanban-column" data-stage="offered">
+                        <div class="column-header">
+                            <div class="column-title-group">
+                                <span class="dot dot-offered"></span>
+                                <h2>Offered</h2>
+                                <span class="badge" id="badge-offered">0</span>
+                            </div>
+                        </div>
+                        <div class="card-list" id="list-offered">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Hired -->
+                    <div class="kanban-column" data-stage="hired">
+                        <div class="column-header">
+                            <div class="column-title-group">
+                                <span class="dot dot-hired"></span>
+                                <h2>Hired</h2>
+                                <span class="badge" id="badge-hired">0</span>
+                            </div>
+                        </div>
+                        <div class="card-list" id="list-hired">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Rejected -->
+                    <div class="kanban-column" data-stage="rejected">
+                        <div class="column-header">
+                            <div class="column-title-group">
+                                <span class="dot dot-rejected"></span>
+                                <h2>Rejected</h2>
+                                <span class="badge" id="badge-rejected">0</span>
+                            </div>
+                        </div>
+                        <div class="card-list" id="list-rejected">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- VIEW: CANDIDATES DIRECTORY -->
+            <div id="view-candidates" class="view-section">
+                <header class="top-navbar">
+                    <div class="header-title-section">
+                        <h1>Candidate Directory</h1>
+                        <p class="subtitle">Review and manage all applicant records in a database table</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary open-add-candidate-btn">
+                            <i data-lucide="plus"></i>
+                            <span>Add Candidate</span>
+                        </button>
+                    </div>
+                </header>
+
+                <section class="filter-toolbar">
+                    <div class="search-box">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="candidates-search-input" placeholder="Search by name, role, level, tags...">
+                    </div>
+                    <div class="filter-options">
+                        <div class="select-wrapper">
+                            <select id="candidates-role-filter">
+                                <option value="">All Roles</option>
+                                <option value="Software Engineer">Software Engineer</option>
+                                <option value="Product Manager">Product Manager</option>
+                                <option value="UX Designer">UX Designer</option>
+                                <option value="Data Scientist">Data Scientist</option>
+                                <option value="HR Specialist">HR Specialist</option>
+                            </select>
+                        </div>
+                        <div class="select-wrapper">
+                            <select id="candidates-level-filter">
+                                <option value="">All Levels</option>
+                                <option value="Non-Staff">Non-Staff</option>
+                                <option value="Staff">Staff</option>
+                                <option value="Senior Staff">Senior Staff</option>
+                                <option value="Officer/Supervisor">Officer/Supervisor</option>
+                                <option value="Junior Manager">Junior Manager</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Senior Manager">Senior Manager</option>
+                                <option value="Associate Director">Associate Director</option>
+                                <option value="Director">Director</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="table-container">
+                    <table class="candidates-table">
+                        <thead>
+                            <tr>
+                                <th>Candidate Name</th>
+                                <th>Role</th>
+                                <th>Level</th>
+                                <th>Resume</th>
+                                <th>Match Score</th>
+                                <th>Current Stage</th>
+                                <th>Avg Rating</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidates-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <!-- VIEW: JOBS -->
+            <div id="view-jobs" class="view-section">
+                <header class="top-navbar">
+                    <div class="header-title-section">
+                        <h1>Job Openings</h1>
+                        <p class="subtitle">Track active vacancies and pipeline sizes by position</p>
+                    </div>
+                </header>
+                <div class="jobs-grid" id="jobs-grid-container">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- VIEW: INTERVIEWS -->
+            <div id="view-interviews" class="view-section">
+                <header class="top-navbar">
+                    <div class="header-title-section">
+                        <h1>Upcoming Interviews</h1>
+                        <p class="subtitle">Monitor pipeline reviews and scheduling agendas</p>
+                    </div>
+                </header>
+                <div class="interviews-container" id="interviews-list-container">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- VIEW: SETTINGS -->
+            <div id="view-settings" class="view-section">
+                <header class="top-navbar">
+                    <div class="header-title-section">
+                        <h1>System Settings</h1>
+                        <p class="subtitle">Configure portal parameters and database states</p>
+                    </div>
+                </header>
+                <div class="settings-panel">
+                    <!-- Company Settings Card -->
+                    <div class="settings-card">
+                        <h3>General Configuration</h3>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label for="settings-company-name">Company Name / Portal Title</label>
+                            <input type="text" id="settings-company-name" value="TalentFlow">
+                        </div>
+                        <button class="btn btn-primary" id="save-settings-btn" style="margin-top: 16px;">
+                            Save Settings
+                        </button>
+                    </div>
+
+                    <!-- Supabase Credentials Card -->
+                    <div class="settings-card">
+                        <h3>Supabase Cloud Integration</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                            Connect your pipeline to a live Supabase PostgreSQL database for real-time collaboration.
+                        </p>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label for="settings-supabase-url">Supabase Project URL</label>
+                            <input type="url" id="settings-supabase-url" placeholder="https://your-project.supabase.co">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label for="settings-supabase-key">Supabase Anon API Key</label>
+                            <input type="password" id="settings-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                        </div>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" id="save-supabase-btn">
+                                <i data-lucide="link"></i> Connect Database
+                            </button>
+                            <button class="btn btn-secondary" id="sync-local-btn" style="display: none;">
+                                <i data-lucide="upload-cloud"></i> Sync Local to Cloud
+                            </button>
+                            <button class="btn btn-secondary" id="disconnect-supabase-btn" style="display: none; border-color: var(--color-rejected); color: var(--color-rejected);">
+                                <i data-lucide="link-2"></i> Disconnect
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Danger Reset Database Card -->
+                    <div class="settings-card danger-zone">
+                        <h3>Danger Zone</h3>
+                        <p>Reset the candidate database back to original Indonesian format mock seeds. All your custom roles, comments, and level settings will be overwritten.</p>
+                        <button class="btn" id="reset-database-btn" style="background-color: var(--color-rejected); color: white; margin-top: 16px;">
+                            <i data-lucide="refresh-cw"></i> Reset Database
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Candidate Detail Slide-over Panel (Drawer) -->
+        <div class="drawer-overlay" id="detail-drawer-overlay"></div>
+        <div class="drawer" id="detail-drawer">
+            <div class="drawer-header">
+                <button class="btn-close" id="close-drawer-btn">
+                    <i data-lucide="x"></i>
+                </button>
+                <div class="stage-tag" id="drawer-stage-badge">Applied</div>
+            </div>
+            
+            <div class="drawer-body" id="drawer-body-content">
+                <!-- Injected dynamically via JS -->
+            </div>
+            
+            <div class="drawer-footer">
+                <button class="btn btn-secondary" id="delete-candidate-btn">
+                    <i data-lucide="trash-2"></i>
+                    <span>Delete</span>
+                </button>
+                <button class="btn btn-primary" id="save-drawer-btn">
+                    <i data-lucide="check"></i>
+                    <span>Save Changes</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Candidate Modal -->
+        <div class="modal-overlay" id="add-modal-overlay">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>Add New Candidate</h2>
+                    <button class="btn-close" id="close-add-modal-btn">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="add-candidate-form">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="new-name">Full Name *</label>
+                            <input type="text" id="new-name" required placeholder="John Doe">
+                        </div>
+                        
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="new-email">Email Address *</label>
+                                <input type="email" id="new-email" required placeholder="johndoe@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-phone">Phone Number</label>
+                                <input type="tel" id="new-phone" placeholder="+62 812-3456-7890">
+                            </div>
+                        </div>
+
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label for="new-role">Role *</label>
+                                <input type="text" id="new-role" list="roles-datalist" placeholder="Select or type role..." required>
+                                <datalist id="roles-datalist">
+                                    <option value="Software Engineer"></option>
+                                    <option value="Product Manager"></option>
+                                    <option value="UX Designer"></option>
+                                    <option value="Data Scientist"></option>
+                                    <option value="HR Specialist"></option>
+                                </datalist>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-level">Job Level *</label>
+                                <select id="new-level" required>
+                                    <option value="" disabled selected>Select Level</option>
+                                    <option value="Non-Staff">Non-Staff</option>
+                                    <option value="Staff">Staff</option>
+                                    <option value="Senior Staff">Senior Staff</option>
+                                    <option value="Officer/Supervisor">Officer/Supervisor</option>
+                                    <option value="Junior Manager">Junior Manager</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Senior Manager">Senior Manager</option>
+                                    <option value="Associate Director">Associate Director</option>
+                                    <option value="Director">Director</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="new-score">Match Score (%)</label>
+                            <input type="number" id="new-score" min="0" max="100" value="85" placeholder="85">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="new-tags">Skills / Tags (comma separated)</label>
+                            <input type="text" id="new-tags" placeholder="React, NodeJS, System Design">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="new-summary">Summary / Experience Highlight</label>
+                            <textarea id="new-summary" rows="3" placeholder="Brief notes on experience, work history, or education..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Resume Document (PDF)</label>
+                            <div class="file-upload-zone" id="new-resume-dropzone">
+                                <i data-lucide="upload-cloud" style="width: 24px; height: 24px; color: var(--text-muted); margin-bottom: 8px;"></i>
+                                <p style="font-size: 13px; font-weight: 500;">Drag & drop your PDF here, or <span style="color: var(--primary); text-decoration: underline; cursor: pointer;">browse</span></p>
+                                <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Only PDF files are supported (max 5MB)</p>
+                                <input type="file" id="new-resume-file" accept="application/pdf" style="display: none;">
+                            </div>
+                            <div class="file-upload-feedback" id="new-resume-feedback" style="display: none; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 8px 12px; border-radius: var(--radius-sm); background-color: rgba(255, 255, 255, 0.04); font-size: 12px; color: var(--primary); border: 1px solid var(--border-color);">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
+                                    <span class="file-name" style="font-weight: 600;">resume.pdf</span>
+                                </div>
+                                <button type="button" class="btn-remove-file" id="new-resume-remove" style="background: none; border: none; color: var(--color-rejected); cursor: pointer; display: flex; align-items: center; padding: 0 4px;"><i data-lucide="trash-2" style="width: 14px; height: 14px;"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="cancel-add-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Candidate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
